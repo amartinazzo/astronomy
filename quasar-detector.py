@@ -1,6 +1,19 @@
 from astropy.io import fits
 import matplotlib.pyplot as plot
 import numpy as np
+import time
+
+# return the time elapsed to run a function with a random array of given size and number of trials
+def time_count(function, size, ntrials):
+  data = np.random.rand(size)
+  total_time = 0
+  for i in range(0, ntrials):
+    start = time.perf_counter()
+    res = func(data)
+    end = time.perf_counter() - start
+    total_time += end
+    data = np.random.rand(size)
+  return total_time/ntrials
 
 # load a csv file and return its mean and median
 def calc_stats(file):
@@ -31,7 +44,8 @@ def mean_fits(image_set):
     data = data + hdulist[0].data
   return data/len(image_set)
 
-# run and test functions
-if __name__ == '__main__':
+if __name__ = '__main__':
+  start = time.perf_counter()
+  # do slow stuff
+  end = time.perf_counter() - start
   
-  # fits_data  = mean_fits(['image0.fits', 'image1.fits', 'image2.fits'])
