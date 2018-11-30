@@ -12,7 +12,7 @@ classes = ['class_6','class_15','class_16','class_42','class_52','class_53','cla
 # n_classes = 14
 chunksize = 1e8
 # 1e7 -> 45 chunks, 44 timeseries split
-# 1e8 -> 5 chunks, no timeseries split between chunks
+# 1e8 -> 5 chunks, 4 timeseries split
 
 
 # MAIN

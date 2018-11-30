@@ -1,14 +1,12 @@
 from collections import Counter
 from datetime import datetime
-from imblearn.over_sampling import SMOTE
-import keras
-from keras import backend as K
-from keras import layers
-from keras.models import Sequential, save_model
-from keras.optimizers import Adam
-from keras.utils import to_categorical
-from keras.wrappers.scikit_learn import KerasClassifier
-import matplotlib.pyplot as plt
+#from imblearn.over_sampling import SMOTE
+# import keras
+# from keras import backend as K
+# from keras import layers
+# from keras.models import Sequential, save_model
+# from keras.optimizers import Adam
+# from keras.utils import to_categorical
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
@@ -20,9 +18,15 @@ import sys
 import tensorflow as tf
 import time
 
+# non-interactive matplot backend
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+
 # PARAMS
 
-output = False #write output to txt
+output = False      # write output to txt
 
 batch_size = 256
 epochs = 3000
@@ -31,8 +35,6 @@ lr = 1e-4
 n_neurons = 16
 seed = 42
 
-# TODO add a boolean argument to save image plots during training
-# so that they can be opened through sshfs
 
 timestamp = datetime.now().strftime("%m%d-%H%M")
 checkpoint_file = 'models/model-{}.h5'.format(timestamp)
@@ -44,16 +46,29 @@ test_file = 'data/test_set.csv'
 test_meta_file = 'data/test_set_metadata.csv'
 
 
-# features per light curve
+# FEATURES
 
-# number of maxima
-# number of minima
+# ddf (boolean): taken from deep drilling fields or not
+# hostgal_photoz: photometric redshift
+# hostgal_photoz_err: uncertainty in hostgal_photoz
+# distmod: distance (modulus) calculated from hostgal_photoz
+# mwebv: how much redder an object appears due to dust in the milky way
+#
+# per passband (there are 6 passbands):
+# number of maxima (% of all points)
+# number of minima (% of all points) -> may capture periodic behaviour
 # minimum flux (flux - flux_err)
 # maximum flux (flux + flux_err)
 # global minima (min of minimum flux)
 # global maxima (max of maximum flux)
-# maximum flux sum
-# minimum flux sum -> area??
+
+# removed features
+
+# ra: right ascension (degrees as float32)
+# decl: declination (degrees)
+# gal_l: galactic longitude
+# gal_b: galactic lattitude
+# hostgal_specz: given only for a small fraction of the test set
 
 
 # HELPER FUNCTIONS
@@ -98,9 +113,9 @@ def pre_process_df(df, df_metadata, mode='test'):
         'mjd': ['size'],
         'minima': ['mean'], #count/n_points
         'maxima': ['mean'], #count/n_points
-        'flux_min': ['sum', 'min'],
-        'flux_max': ['sum', 'max'],
-        'flux': ['sum', 'mean', 'median', 'std'],
+        'flux_min': ['mean', 'min'],
+        'flux_max': ['mean', 'max'],
+        'flux': ['mean', 'median', 'std'],
         'detected': ['mean'],
     }
     
@@ -132,7 +147,7 @@ def pre_process_df(df, df_metadata, mode='test'):
         object_ids = df['object_id']
 
     
-    drop_cols = ['object_id', 'ra', 'decl', 'gal_l', 'gal_b', 'ddf', 'distmod', 'mwebv', 'hostgal_photoz', 'hostgal_photoz_err']
+    drop_cols = ['object_id', 'ra', 'decl', 'gal_l', 'gal_b', 'hostgal_specz']
     df.drop(columns=drop_cols, inplace=True)
     
     df.fillna(df.mean(axis=0), inplace=True)
@@ -155,7 +170,7 @@ def get_input(df):
 def one_hot(y):
     return pd.get_dummies(pd.Series(y)).values
 
-
+#TODO update loss weights
 def wloss(y_true, y_pred):
     yc = tf.clip_by_value(y_pred,1e-15,1-1e-15)
     loss = -(tf.reduce_mean(tf.reduce_mean(y_true*tf.log(yc),axis=0)/wtable))
@@ -170,8 +185,7 @@ def plot_loss(history):
     plt.ylabel('val_loss')
     plt.xlabel('epoch')
     plt.legend(['train','validation'], loc='upper left')
-    plt.show()
-    # TODO conditional to show or save plot
+    plt.savefig('images/loss-model-{}'.format(timestamp))
 
 
 def build_model(n_features, n_classes, n_neurons=n_neurons, dropout_rate=0.5, activation='relu'):
@@ -189,6 +203,7 @@ def build_model(n_features, n_classes, n_neurons=n_neurons, dropout_rate=0.5, ac
 
 
 df, _ = pre_process_df(training_file, training_meta_file, mode='train')
+
 X = get_input(df)
 y = df['target'].values
 
@@ -213,85 +228,90 @@ for i in range(n_classes):
 # MAIN
 
 
-if __name__=='main':
+if __name__=='__main__':
 
-	# print to file
+    # print to file
 
-	if output:
-	    orig_stdout = sys.stdout
-	    f = open(txt_file, 'w')
-	    sys.stdout = f
+    if output:
+        orig_stdout = sys.stdout
+        f = open(txt_file, 'w')
+        sys.stdout = f
 
-	print('\n\nHYPERPARAMS')
-	print('batch_size={}\nepochs={}\nlr={}\nn_neurons={}\nseed={}'.format(batch_size, epochs, lr, n_neurons, seed))
-	print('\n\nfull sets')
-	print(X.shape)
-	print(y.shape)
+    print('\n\nHYPERPARAMS')
+    print('batch_size={}\nepochs={}\nlr={}\nn_neurons={}\nseed={}'.format(batch_size, epochs, lr, n_neurons, seed))
+    print('\n\nfull sets')
+    print(X.shape)
+    print(y.shape)
 
-	# train test split
+    # train test split
 
-	splitter = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=seed)
-	train_idx, test_idx = list(splitter.split(X, y))[0]
+    splitter = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=seed)
+    train_idx, test_idx = list(splitter.split(X, y))[0]
 
-	X_train, X_test = X[train_idx], X[test_idx]
-	y_train, y_test = y[train_idx], y[test_idx]
+    X_train, X_test = X[train_idx], X[test_idx]
+    y_train, y_test = y[train_idx], y[test_idx]
 
-	train_idx, val_idx = list(splitter.split(X_train, y_train))[0]
-	X_train, X_val = X_train[train_idx], X_train[val_idx]
-	y_train, y_val = y_train[train_idx], y_train[val_idx]
+    train_idx, val_idx = list(splitter.split(X_train, y_train))[0]
+    X_train, X_val = X_train[train_idx], X_train[val_idx]
+    y_train, y_val = y_train[train_idx], y_train[val_idx]
 
-	print('\n\ntrain sets after train-test split')
-	print(X_train.shape)
-	print(y_train.shape)
+    print('\n\ntrain sets after train-test split')
+    print(X_train.shape)
+    print(y_train.shape)
 
-	# class proportions
+    # class proportions
 
-	unique, counts = np.unique(y_train, return_counts=True)
-	counts = np.round(counts/len(y_train), 2)
-	print('\n\nclass proportions')
-	print(list(zip(unique,counts)))
+    unique, counts = np.unique(y_train, return_counts=True)
+    counts = np.round(counts/len(y_train), 2)
+    print('\n\nclass proportions')
+    print(list(zip(unique,counts)))
 
-	# one-hot encoding of classes
+    # one-hot encoding of classes
 
-	# TODO use to_categorical func
+    # TODO use to_categorical func
 
-	y_train = one_hot(y_train)
-	y_val = one_hot(y_val)
-	y_test = one_hot(y_test)
-	
-	# oversampling - only on the training set!
-	# balanced classes: 7% each
+    y_train = one_hot(y_train)
+    y_val = one_hot(y_val)
+    y_test = one_hot(y_test)
+    
+    # oversampling - only on the training set!
+    # balanced classes: 7% each
 
-	sm = SMOTE(random_state=seed)
-	X_train, y_train = sm.fit_sample(X_train, y_train)
+    sm = SMOTE(random_state=seed)
+    X_train, y_train = sm.fit_sample(X_train, y_train)
 
-	unique, counts = np.unique(y_train, return_counts=True)
-	counts = np.round(counts/len(y_train),2)
-	print('\n\nnclass proportions after oversampling')
-	print(list(zip(unique,counts)))
+    unique, counts = np.unique(y_train, return_counts=True)
+    counts = np.round(counts/len(y_train),2)
+    print('\n\nnclass proportions after oversampling')
+    print(list(zip(unique,counts)))
 
-	# model training
+    # model training
 
-	K.clear_session()
-	model = build_model(n_features=n_features, n_classes=n_classes)
-	print(model.summary())
+    K.clear_session()
+    model = build_model(n_features=n_features, n_classes=n_classes)
+    print(model.summary())
 
-	# checkpoint: save epoch with lowest validation loss
-	checkpoint = keras.callbacks.ModelCheckpoint(
-	        checkpoint_file, monitor='val_loss', mode='min', save_best_only=True, verbose=0)
+    # checkpoint: save epoch with lowest validation loss
+    checkpoint = keras.callbacks.ModelCheckpoint(
+            checkpoint_file, monitor='val_loss', mode='min', save_best_only=True, verbose=0)
 
-	history = model.fit(
-	    X_train, y_train,
-	    epochs=epochs,
-	    batch_size=batch_size,
-	    validation_data=(X_val, y_val),
-	    #validation_split=0.1,
-	    verbose=2,
-	    shuffle=True,
-	    callbacks=[checkpoint]
-	)
+    history = model.fit(
+        X_train, y_train,
+        epochs=epochs,
+        batch_size=batch_size,
+        validation_data=(X_val, y_val),
+        #validation_split=0.1,
+        verbose=2,
+        shuffle=True,
+        callbacks=[checkpoint]
+    )
 
-	#plot_loss(history)
+    plot_loss(history)
 
-	print('\n\nevaluation on test set')
-	print(model.evaluate(X_test, y_test))
+    print('\n\nevaluation on test set')
+    print(model.evaluate(X_test, y_test))
+
+    if output:
+        print('FINISHED')
+        sys.stdout = orig_stdout
+        f.close()

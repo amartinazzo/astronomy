@@ -1,7 +1,9 @@
+*.cat
 *.csv
 *.h5
 *.ipynb
 *.pdf
+*.png
 *.txt
 *.zip
 */.ipynb_checkpoints/*
