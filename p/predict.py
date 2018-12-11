@@ -2,8 +2,8 @@ from train import *
 
 # TODO files must be input arguments
 
-checkpoint_file = 'models/model-1129-0.h5'
-preds_file = 'predictions/predictions-1129-0.csv'
+checkpoint_file = 'models/model-1210-1311.h5'
+preds_file = 'predictions/predictions-1210-0.csv'
 
 classes = ['class_6','class_15','class_16','class_42','class_52','class_53','class_62','class_64','class_65',
            'class_67','class_88','class_90','class_92','class_95']

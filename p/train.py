@@ -1,12 +1,12 @@
 from collections import Counter
 from datetime import datetime
-#from imblearn.over_sampling import SMOTE
-# import keras
-# from keras import backend as K
-# from keras import layers
-# from keras.models import Sequential, save_model
-# from keras.optimizers import Adam
-# from keras.utils import to_categorical
+from imblearn.over_sampling import SMOTE
+import keras
+from keras import backend as K
+from keras import layers
+from keras.models import Sequential, save_model
+from keras.optimizers import Adam
+from keras.utils import to_categorical
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 output = False      # write output to txt
 
 batch_size = 256
-epochs = 3000
+epochs = 2000
 eps = 1e-8
 lr = 1e-4
 n_neurons = 16
@@ -44,6 +44,9 @@ training_file = 'data/training_set.csv'
 training_meta_file = 'data/training_set_metadata.csv'
 test_file = 'data/test_set.csv'
 test_meta_file = 'data/test_set_metadata.csv'
+
+classes = [6, 15, 16, 42, 52, 53, 62, 64, 65, 67, 88, 90, 92, 95]
+class_weight = {6: 1, 15: 2, 16: 1, 42: 4, 52: 4, 53: 1, 62: 4, 64: 2, 65: 1, 67: 4, 88: 1, 90: 2, 92: 1, 95: 1}
 
 
 # FEATURES
@@ -115,7 +118,7 @@ def pre_process_df(df, df_metadata, mode='test'):
         'maxima': ['mean'], #count/n_points
         'flux_min': ['mean', 'min'],
         'flux_max': ['mean', 'max'],
-        'flux': ['mean', 'median', 'std'],
+        'flux': ['mean', 'median', 'std', 'skew', pd.DataFrame.kurt],
         'detected': ['mean'],
     }
     
@@ -170,10 +173,13 @@ def get_input(df):
 def one_hot(y):
     return pd.get_dummies(pd.Series(y)).values
 
-#TODO update loss weights
-def wloss(y_true, y_pred):
-    yc = tf.clip_by_value(y_pred,1e-15,1-1e-15)
-    loss = -(tf.reduce_mean(tf.reduce_mean(y_true*tf.log(yc),axis=0)/wtable))
+
+# discussion on weighted logloss
+# https://www.kaggle.com/c/PLAsTiCC-2018/discussion/69795
+
+def multi_weighted_logloss(y_true, y_pred):
+    yc = tf.clip_by_value(y_pred, 1e-15, 1-1e-15)
+    loss = -(tf.reduce_mean(tf.reduce_mean(y_true*tf.log(yc),axis=0)/class_weight_arr))
     return loss
 
 
@@ -194,35 +200,23 @@ def build_model(n_features, n_classes, n_neurons=n_neurons, dropout_rate=0.5, ac
     model.add(layers.Dropout(dropout_rate))
     
     model.add(layers.Dense(n_classes, activation='softmax'))
-    model.compile(loss=wloss, optimizer=Adam(lr=lr, epsilon=eps))
+    model.compile(loss=multi_weighted_logloss, optimizer=Adam(lr=lr, epsilon=eps))
     
     return model
 
 
 # GLOBAL VARIABLES
 
+class_weight_arr = np.array([class_weight[k] for k in sorted(class_weight.keys())])
+class_weight_arr = class_weight_arr / np.linalg.norm(class_weight_arr, ord=1)
 
 df, _ = pre_process_df(training_file, training_meta_file, mode='train')
 
 X = get_input(df)
 y = df['target'].values
 
-# https://www.kaggle.com/c/PLAsTiCC-2018/discussion/69795
-
-unique_y = np.unique(y)
-n_classes = len(unique_y)
+n_classes = len(np.unique(y))
 n_features = X.shape[1]
-
-class_map = dict()
-for i,val in enumerate(unique_y):
-    class_map[val] = i        
-y_map = np.zeros((y.shape[0],))
-y_map = np.array([class_map[val] for val in y])
-y_count = Counter(y_map)
-
-wtable = np.zeros((n_classes,))
-for i in range(n_classes):
-    wtable[i] = y_count[i]/y_map.shape[0]
 
 
 # MAIN
@@ -265,14 +259,6 @@ if __name__=='__main__':
     counts = np.round(counts/len(y_train), 2)
     print('\n\nclass proportions')
     print(list(zip(unique,counts)))
-
-    # one-hot encoding of classes
-
-    # TODO use to_categorical func
-
-    y_train = one_hot(y_train)
-    y_val = one_hot(y_val)
-    y_test = one_hot(y_test)
     
     # oversampling - only on the training set!
     # balanced classes: 7% each
@@ -282,8 +268,15 @@ if __name__=='__main__':
 
     unique, counts = np.unique(y_train, return_counts=True)
     counts = np.round(counts/len(y_train),2)
-    print('\n\nnclass proportions after oversampling')
+    print('\n\nclass proportions after oversampling')
     print(list(zip(unique,counts)))
+
+    # one-hot encoding of classes
+    # TODO use to_categorical func
+
+    y_train = one_hot(y_train)
+    y_val = one_hot(y_val)
+    y_test = one_hot(y_test)
 
     # model training
 
