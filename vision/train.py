@@ -15,10 +15,10 @@ train_file = 'train.csv'
 val_file = 'val.csv'
 
 lr = 1e-4
-n_epochs = 10
+n_epochs = 1
 val_split = 0.8
 
-timestamp = datetime.now().strftime("%m%d-%H%M")
+timestamp = datetime.now().strftime("%y%m%d")
 checkpoint_file = 'model-{}.h5'.format(timestamp)
 
 # CLASSES
