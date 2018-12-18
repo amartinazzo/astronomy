@@ -5,16 +5,27 @@ import numpy as np
 import os
 
 # train or test
-mode = 'test'
+mode = 'train'
 
-cat_file = mode+'_catalog.csv'
+cat_file = 'catalog_{}.csv'.format(mode)
 in_path = 'raw_data/'
 out_path = mode+'_patches/'
 
-path_overlap = 200
+patch_overlap = 200
 patch_size = 1000
 prob_thres = .9
 m = 2               # multiply by FWHM to generate bounding boxes
+r = 5               # use (x0-r, x1+r) coordinates for boxes if x0 == x1 (likewise for y0, y1)
+
+# CLASSES
+# 3 galaxy
+# 6 star
+
+cols = [
+    'ID', 'RA', 'Dec', 'X', 'Y', 'ISOarea', 's2nDet', 'PhotoFlag', 'FWHM', 'MUMAX', 'A', 'B', 'THETA', 'FlRadDet', 'KrRadDet', 'uJAVA_auto', 'euJAVA_auto', 's2n_uJAVA_auto', 'uJAVA_petro', 'euJAVA_petro', 's2n_uJAVA_petro', 'uJAVA_aper', 'euJAVA_aper', 's2n_uJAVA_aper', 'F378_auto', 'eF378_auto', 's2n_F378_auto', 'F378_petro', 'eF378_petro', 's2n_F378_petro', 'F378_aper', 'eF378_aper', 's2n_F378_aper', 'F395_auto', 'eF395_auto', 's2n_F395_auto', 'F395_petro', 'eF395_petro', 's2n_F395_petro', 'F395_aper', 'eF395_aper', 's2n_F395_aper', 'F410_auto', 'eF410_auto', 's2n_F410_auto', 'F410_petro', 'eF410_petro', 's2n_F410_petro', 'F410_aper', 'eF410_aper', 's2n_F410_aper', 'F430_auto', 'eF430_auto', 's2n_F430_auto', 'F430_petro', 'eF430_petro', 's2n_F430_petro', 'F430_aper', 'eF430_aper', 's2n_F430_aper', 'g_auto', 'eg_auto', 's2n_g_auto', 'g_petro', 'eg_petro', 's2n_g_petro', 'g_aper', 'eg_aper', 's2n_g_aper', 'F515_auto', 'eF515_auto', 's2n_F515_auto', 'F515_petro', 'eF515_petro', 's2n_F515_petro', 'F515_aper', 'eF515_aper', 's2n_F515_aper', 'r_auto', 'er_auto', 's2n_r_auto', 'r_petro', 'er_petro', 's2n_r_petro', 'r_aper', 'er_aper', 's2n_r_aper', 'F660_auto', 'eF660_auto', 's2n_F660_auto', 'F660_petro', 'eF660_petro', 's2n_F660_petro', 'F660_aper', 'eF660_aper', 's2n_F660_aper', 'i_auto', 'ei_auto', 's2n_i_auto', 'i_petro', 'ei_petro', 's2n_i_petro', 'i_aper', 'ei_aper', 's2n_i_aper', 'F861_auto', 'eF861_auto', 's2n_F861_auto', 'F861_petro', 'eF861_petro', 's2n_F861_petro', 'F861_aper', 'eF861_aper', 's2n_F861_aper', 'z_auto', 'ez_auto', 's2n_z_auto', 'z_petro', 'ez_petro', 's2n_z_petro', 'z_aper', 'ez_aper', 's2n_z_aper', 'zb', 'zb_Min', 'zb_Max', 'Tb', 'Odds', 'Chi2', 'M_B', 'Stell_Mass', 'CLASS', 'PROB_GAL', 'PROB_STAR'
+]
+
+usecols = ['ID', 'X', 'Y', 'FWHM', 'CLASS', 'PROB_GAL', 'PROB_STAR']
 
 
 def gen_data(input_folder, output_folder, csv_file):
@@ -23,8 +34,11 @@ def gen_data(input_folder, output_folder, csv_file):
         return 1
 
     os.mkdir(output_folder)
+    files = glob('{}{}_images/*'.format(input_folder, mode), recursive=True)
+    n_files = len(files)
 
-    for filename in glob('{}{}_images/*'.format(input_folder, mode), recursive=True):
+    for ix, filename in enumerate(files):
+        print('{}/{} processing {}...'.format(ix, n_files, filename))
         stripe = filename.split('/')[-1].split('.')[0]
 
         im = cv2.imread(filename)
@@ -39,7 +53,8 @@ def gen_data(input_folder, output_folder, csv_file):
                     output_folder, stripe, y_int, x//d), cropped_img)
 
         cat = pd.read_csv('{}catalogs/SPLUS_{}_Photometry.cat'.format(input_folder, stripe),
-            delimiter=' ', skipinitialspace=True, comment='#', index_col=False)
+            delimiter=' ', skipinitialspace=True, comment='#', index_col=False, header=None,
+            names=cols, usecols=usecols)
 
         cat = cat[(cat.PROB_STAR>prob_thres)|(cat.PROB_GAL>prob_thres)]
         
