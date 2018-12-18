@@ -1,7 +1,7 @@
 from datetime import datetime
 import json
 from keras import optimizers
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, History
 from keras_retinanet import losses
 from keras_retinanet.models.resnet import resnet50_retinanet
 from keras_retinanet.preprocessing.csv_generator import CSVGenerator
@@ -25,7 +25,14 @@ model_name = 'model-' + datetime.now().strftime("%y%m%d-%H%M")
 checkpoint_file = '{}.h5'.format(model_name)
 
 
-# HELPER FUNCS
+# HELPER FUNCS/CLASSES
+
+# source at https://github.com/keras-team/keras/blob/master/keras/callbacks.py
+class JsonHistory(History):
+    def on_epoch_end(self, epoch, logs=None):
+        super().on_epoch_end(self, epoch, logs)
+        with open('{}.json'.format(model_name), 'w') as file:
+            json.dump(self.history, file)
 
 
 def frozen_model(model):
@@ -86,17 +93,13 @@ if __name__=='__main__':
         save_best_only=True,
         verbose=0
     )
+    history_callback = JsonHistory()
 
     history = model.fit_generator(
         train_gen,
         steps_per_epoch=train_gen.size(),
         validation_data=val_gen,
         validation_steps=val_gen.size(),
-        callbacks=[checkpoint],
+        callbacks=[checkpoint, history_callback],
         epochs=n_epochs
     )
-
-    # save training history
-    
-    with open('{}.json'.format(model_name), 'w') as f:
-    json.dump(history.history, f)
