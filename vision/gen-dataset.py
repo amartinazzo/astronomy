@@ -1,4 +1,4 @@
-import constants
+from constants import *
 import cv2
 from glob import glob
 import pandas as pd
@@ -6,7 +6,7 @@ import numpy as np
 import os
 
 # train or test
-mode = 'test'
+mode = 't'
 
 cat_file = 'catalog_{}.csv'.format(mode)
 in_path = 'raw_data/'
@@ -14,18 +14,21 @@ out_path = 'patches_{}/'.format(mode)
 
 
 def patch_coord(x):
-    return int((x + patch_overlap) // d)
+    if x<= patch_size:
+        return 0
+    else:
+        return int(np.ceil((x-patch_size)/d))
 
 
 def gen_data(input_folder, output_folder, csv_file):
+    if os.path.exists(cat_file):
+        print('error: catalog file already exists')
+        return 1
+
     if os.path.isdir(output_folder):
         print('error: output folder already exists')
         return 1
     os.mkdir(output_folder)
-
-    if os.path.exists(cat_file):
-        print('error: catalog file already exists')
-        return 1
 
     files = glob('{}{}_images/*'.format(input_folder, mode), recursive=True)
     n_files = len(files)
@@ -35,10 +38,10 @@ def gen_data(input_folder, output_folder, csv_file):
         stripe = filename.split('/')[-1].split('.')[0]
 
         im = cv2.imread(filename)
-        imshape = im.shape
-        for y in range(0, imshape[0], d):
+        # im = im[y_pad0:y_pad1, x_pad0:x_pad1] # coordinates are im[y, x]
+        for y in range(0, y_size-patch_overlap, d):
             y_int = y//d
-            for x in range(0, imshape[1], d):
+            for x in range(0, x_size-patch_overlap, d):
                 cropped_img = im[y:y+patch_size, x:x+patch_size]
                 cv2.imwrite('{}{}.{}.{}.png'.format(
                     output_folder, stripe, y_int, x//d), cropped_img)
@@ -47,19 +50,28 @@ def gen_data(input_folder, output_folder, csv_file):
             delimiter=' ', skipinitialspace=True, comment='#', index_col=False, header=None,
             names=cols, usecols=usecols)
 
-        cat = cat[(cat.PROB_STAR>prob_thres)|(cat.PROB_GAL>prob_thres)]
+        cat = cat[(cat.PROB_STAR>=prob_thres)|(cat.PROB_GAL>prob_thres)]
+        # cat = cat[(cat.s2nDet>=s2n_thres)]
+        # cat = cat[(cat.MUMAX<=mumax_thres)]
         
         cat['class'] = 'galaxy'
         cat.loc[cat.CLASS == star_int_class, 'class'] = 'star'
-
         cat.loc[cat.FWHM < f, 'FWHM'] = f
+
+        # cat['X'] = cat.X - x_pad0
+        # cat['Y'] = cat.Y - y_pad0
         cat['x0'] = cat.X - m*cat.FWHM
         cat['x1'] = cat.X + m*cat.FWHM
-        cat['y0'] = size - cat.Y - m*cat.FWHM
-        cat['y1'] = size - cat.Y + m*cat.FWHM
+        cat['y0'] = y_size - cat.Y - m*cat.FWHM
+        cat['y1'] = y_size - cat.Y + m*cat.FWHM
 
-        cat['patch_x'] = cat.X.apply(patch_coord)
-        cat['patch_y'] = cat.Y.apply(patch_coord)
+        cat.loc[cat.x0<0, 'x0'] = 0
+        cat.loc[cat.x1>x_size, 'x1'] = x_size
+        cat.loc[cat.y0<0, 'y0'] = 0
+        cat.loc[cat.y1>y_size, 'y1'] = y_size
+
+        cat['patch_x'] = cat.x1.apply(patch_coord)
+        cat['patch_y'] = cat.y1.apply(patch_coord)
 
         cat['image'] = cat[['patch_y', 'patch_x']].apply(
             lambda s: '{}{}.{}.{}.png'.format(output_folder, stripe, s[0], s[1]), axis=1)
