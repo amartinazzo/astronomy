@@ -1,11 +1,18 @@
-from keras.backend import floatx
-from keras_retinanet.models.retinanet import AnchorParameters
-import numpy as np
-
 # input image		11000 x 11000
 # original padding	im[1410:10560, 590:9980]
 # squared padding	im[1100:10600, 480:9980]
 # size with padding	9200 x 9500
+
+# anchor params must be modified inside retinanet src code
+# in ~/keras-retinanet/keras_retinanet/utils/anchors.py
+
+# AnchorParameters.default = AnchorParameters(
+#     sizes   = [8, 16, 32, 64, 128],
+#     strides = [8, 16, 32],
+#     ratios  = np.array([1], keras.backend.floatx()),
+#     scales  = np.array([1, 1.2], keras.backend.floatx()),
+# )
+
 
 pad_x0 = 1410
 pad_x1 = 10560
@@ -27,7 +34,6 @@ prob_thres = .9		# >=
 s2n_thres = 10		# >=
 
 d = patch_size - patch_overlap
-# d = 900
 # patch_size + n*d = img_size
 # n+1 is the number of patches along each axis
 
@@ -44,10 +50,3 @@ cols = [
 
 df_cols = ['file', 'x0', 'y0', 'x1', 'y1', 'class']
 usecols = ['ID', 'X', 'Y', 'MUMAX', 's2nDet', 'FWHM', 'CLASS', 'PROB_GAL', 'PROB_STAR']
-
-anchor_params = AnchorParameters(
-    sizes   = [8, 16, 32, 64, 128],
-    strides = [8, 16, 32],
-    ratios  = np.array([1], floatx()),
-    scales  = np.array([1, 1.2, 1.6], floatx()),
-)

@@ -1,3 +1,4 @@
+from constants import anchor_params
 from train import *
 from keras_retinanet.models import convert_model
 from keras_retinanet.utils.eval import evaluate
@@ -8,6 +9,10 @@ val_file = 'catalog_val_small.csv'
 
 print('loading model...')
 model = load_model(model_weights, n_classes=2, anchor_params=anchor_params)
+
+print(model.summary())
+exit()
+
 print('converting model...')
 model = convert_model(model)
 

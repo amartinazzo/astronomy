@@ -6,7 +6,7 @@ import numpy as np
 import os
 
 # train or test
-mode = 't'
+mode = 'train'
 generate_patches = True
 
 cat_file = 'catalog_{}.csv'.format(mode)
@@ -84,14 +84,6 @@ def gen_data(input_folder, output_folder, csv_file):
 
         int_cols = ['x0', 'x1', 'y0', 'y1']
         cat[int_cols] = cat[int_cols].astype(int)
-
-        # zero_width = cat.x0 == cat.x1
-        # cat.loc[zero_width, 'x0'] = cat.x0 - f
-        # cat.loc[zero_width, 'x1'] = cat.x1 + f
-
-        # zero_height = cat.y0 == cat.y1
-        # cat.loc[zero_height, 'y0'] = cat.y0 - f
-        # cat.loc[zero_height, 'y1'] = cat.y1 + f
 
         bounds = (cat.x0>=0) & (cat.x1<=patch_size) & (cat.y0>=0) & (cat.y1<=patch_size)
         cat = cat[bounds]

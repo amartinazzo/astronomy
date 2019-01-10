@@ -57,11 +57,11 @@ def load_model(weights, n_classes, freeze=True, anchor_params=None):
     modifier = frozen_model if freeze else None
 
     model = resnet50_retinanet(
-        num_classes=n_classes,
+        n_classes,
         modifier=modifier,
-        anchor_params=anchor_params
+        anchor_parameters=anchor_params
         )
-    model.load_weights(weights, by_name=True, skip_mismatch=True)
+    model = model.load_weights(weights, by_name=True, skip_mismatch=True)
 
     return model
 
