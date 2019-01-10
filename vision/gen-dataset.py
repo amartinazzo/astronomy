@@ -7,6 +7,7 @@ import os
 
 # train or test
 mode = 't'
+generate_patches = False
 
 cat_file = 'catalog_{}.csv'.format(mode)
 in_path = 'raw_data/'
@@ -25,10 +26,11 @@ def gen_data(input_folder, output_folder, csv_file):
         print('error: catalog file already exists')
         return 1
 
-    if os.path.isdir(output_folder):
-        print('error: output folder already exists')
-        return 1
-    os.mkdir(output_folder)
+    if generate_patches:
+        if os.path.isdir(output_folder):
+            print('error: output folder already exists')
+            return 1
+        os.mkdir(output_folder)
 
     files = glob('{}{}_images/*'.format(input_folder, mode), recursive=True)
     n_files = len(files)
@@ -37,29 +39,28 @@ def gen_data(input_folder, output_folder, csv_file):
         print('{}/{} processing {}...'.format(ix+1, n_files, filename))
         stripe = filename.split('/')[-1].split('.')[0]
 
-        im = cv2.imread(filename)
-        # im = im[y_pad0:y_pad1, x_pad0:x_pad1] # coordinates are im[y, x]
-        for y in range(0, y_size-patch_overlap, d):
-            y_int = y//d
-            for x in range(0, x_size-patch_overlap, d):
-                cropped_img = im[y:y+patch_size, x:x+patch_size]
-                cv2.imwrite('{}{}.{}.{}.png'.format(
-                    output_folder, stripe, y_int, x//d), cropped_img)
+        if generate_patches:
+            im = cv2.imread(filename)
+            # im = im[y_pad0:y_pad1, x_pad0:x_pad1] # coordinates are im[y, x]
+            for y in range(0, y_size-patch_overlap, d):
+                y_int = y//d
+                for x in range(0, x_size-patch_overlap, d):
+                    cropped_img = im[y:y+patch_size, x:x+patch_size]
+                    cv2.imwrite('{}{}.{}.{}.png'.format(
+                        output_folder, stripe, y_int, x//d), cropped_img)
 
-        cat = pd.read_csv('{}catalogs/SPLUS_{}_Photometry.cat'.format(input_folder, stripe),
-            delimiter=' ', skipinitialspace=True, comment='#', index_col=False, header=None,
-            names=cols, usecols=usecols)
+        cat = pd.read_csv(
+            '{}catalogs/SPLUS_{}_Photometry.cat'.format(input_folder, stripe),
+            delimiter=' ', skipinitialspace=True, comment='#', index_col=False,
+            header=None, names=cols, usecols=usecols)
 
-        cat = cat[(cat.PROB_STAR>=prob_thres)|(cat.PROB_GAL>prob_thres)]
-        # cat = cat[(cat.s2nDet>=s2n_thres)]
-        # cat = cat[(cat.MUMAX<=mumax_thres)]
+        cat = cat[(cat.PROB_STAR>=prob_thres)|(cat.PROB_GAL>=prob_thres)]
+        and_filters = (cat.FWHM>=fwhm_min) & (cat.FWHM<=fwhm_max) & (cat.MUMAX<=mumax_thres) & (cat.s2nDet>=s2n_thres)
+        cat = cat[and_filters]
         
         cat['class'] = 'galaxy'
         cat.loc[cat.CLASS == star_int_class, 'class'] = 'star'
-        cat.loc[cat.FWHM < f, 'FWHM'] = f
 
-        # cat['X'] = cat.X - x_pad0
-        # cat['Y'] = cat.Y - y_pad0
         cat['x0'] = cat.X - m*cat.FWHM
         cat['x1'] = cat.X + m*cat.FWHM
         cat['y0'] = y_size - cat.Y - m*cat.FWHM
@@ -84,13 +85,16 @@ def gen_data(input_folder, output_folder, csv_file):
         int_cols = ['x0', 'x1', 'y0', 'y1']
         cat[int_cols] = cat[int_cols].astype(int)
 
-        zero_width = cat.x0 == cat.x1
-        cat.loc[zero_width, 'x0'] = cat.x0 - f
-        cat.loc[zero_width, 'x1'] = cat.x1 + f
+        # zero_width = cat.x0 == cat.x1
+        # cat.loc[zero_width, 'x0'] = cat.x0 - f
+        # cat.loc[zero_width, 'x1'] = cat.x1 + f
 
-        zero_height = cat.y0 == cat.y1
-        cat.loc[zero_height, 'y0'] = cat.y0 - f
-        cat.loc[zero_height, 'y1'] = cat.y1 + f
+        # zero_height = cat.y0 == cat.y1
+        # cat.loc[zero_height, 'y0'] = cat.y0 - f
+        # cat.loc[zero_height, 'y1'] = cat.y1 + f
+
+        bounds = (cat.x0>=0) & (cat.x1<=patch_size) & (cat.y0>=0) & (cat.y1<=patch_size)
+        cat = cat[bounds]
 
         cat_final = cat[['image', 'x0', 'y0', 'x1', 'y1', 'class']]
         cat_final.to_csv(cat_file, index=False, header=False, mode='a')

@@ -1,3 +1,7 @@
+import os
+os.environ['CUDA_DEVICE_ORDER']='PCI_BUS_ID'
+os.environ['CUDA_VISIBLE_DEVICES']='1' # use only gpu id=1
+
 from datetime import datetime
 import json
 from keras import optimizers
@@ -10,6 +14,12 @@ import pandas as pd
 import tensorflow as tf
 
 
+# to keep training after logging out of server
+# nohup python3 train.py &
+
+
+do_train_val_split = True
+
 cat_file = 'catalog_train.csv'
 classes_file = 'class_mapping.csv'
 pretrained_model = 'resnet50_coco_best_v2.1.0.h5'
@@ -17,12 +27,14 @@ pretrained_model = 'resnet50_coco_best_v2.1.0.h5'
 train_file = 'catalog_train_train.csv'
 val_file = 'catalog_train_val.csv'
 
+clipnorm = 1e-3
+freeze_weights = False
 lr = 1e-4
-n_epochs = 10
-val_split = 0.8
+n_epochs = 5
+val_split = 0.3
 
 model_name = 'model-' + datetime.now().strftime("%y%m%d-%H%M")
-checkpoint_file = '{}.h5'.format(model_name)
+checkpoint_file = 'models/{}.h5'.format(model_name)
 
 
 # HELPER FUNCS/CLASSES
@@ -30,8 +42,8 @@ checkpoint_file = '{}.h5'.format(model_name)
 # source at https://github.com/keras-team/keras/blob/master/keras/callbacks.py
 class JsonHistory(History):
     def on_epoch_end(self, epoch, logs=None):
-        super().on_epoch_end(self, epoch, logs)
-        with open('{}.json'.format(model_name), 'w') as file:
+        super().on_epoch_end(epoch, logs)
+        with open('models/{}.json'.format(model_name), 'w') as file:
             json.dump(self.history, file)
 
 
@@ -57,21 +69,22 @@ if __name__=='__main__':
 
     # train val split
 
-    df = pd.read_csv(
-        cat_file, header=None, comment='#',
-        names=['file', 'x0', 'y0', 'x1', 'y1', 'class'])
-    df['split'] = np.random.randn(df.shape[0], 1)
-    msk = np.random.rand(len(df)) <= val_split
-    df.drop(columns=['split'], inplace=True)
+    if do_train_val_split:
+        df = pd.read_csv(
+            cat_file, header=None, comment='#',
+            names=['file', 'x0', 'y0', 'x1', 'y1', 'class'])
+        df['split'] = np.random.randn(df.shape[0], 1)
+        msk = np.random.rand(len(df)) >= val_split
+        df.drop(columns=['split'], inplace=True)
 
-    cols = ['x0', 'y0', 'x1', 'y1']
-    df[cols] = df[cols].astype(int)
-    df[msk].to_csv(train_file, index=False, header=False)
-    df[~msk].to_csv(val_file, index=False, header=False)
+        cols = ['x0', 'y0', 'x1', 'y1']
+        df[cols] = df[cols].astype(int)
+        df[msk].to_csv(train_file, index=False, header=False)
+        df[~msk].to_csv(val_file, index=False, header=False)
 
     # load model
 
-    model = load_model(pretrained_model, n_classes=2, freeze=True)
+    model = load_model(pretrained_model, n_classes=2, freeze=freeze_weights)
 
     # train model
 
@@ -83,7 +96,8 @@ if __name__=='__main__':
             'regression'    : losses.smooth_l1(),
             'classification': losses.focal()
         },
-        optimizer=optimizers.adam(lr=lr, clipnorm=0.001)
+        metrics=['accuracy'],
+        optimizer=optimizers.adam(lr=lr, clipnorm=clipnorm)
     )
 
     checkpoint = ModelCheckpoint(
@@ -101,5 +115,6 @@ if __name__=='__main__':
         validation_data=val_gen,
         validation_steps=val_gen.size(),
         callbacks=[checkpoint, history_callback],
-        epochs=n_epochs
+        epochs=n_epochs,
+        verbose=1,
     )

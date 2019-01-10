@@ -2,10 +2,12 @@
 *.csv
 *.h5
 *.ipynb
+*.out
 *.pdf
 *.png
 *.txt
 *.zip
 */.ipynb_checkpoints/*
 */__pycache__/*
+*/models/*
 */sandbox/*

@@ -15,10 +15,11 @@ y_size = img_size
 # y_pad0 = 480
 # y_pad1 = 9980
 
-m = 1               # multiply by FWHM to generate bounding boxes
-f = 1               # if FWHM < f => FWHM = f
+m = 2				# multiply by FWHM to generate bounding boxes
 
 # thresholds for filtering training objects
+fwhm_min = 2		# >=
+fwhm_max = 10		# <=
 mumax_thres = 17	# <=
 prob_thres = .9		# >=
 s2n_thres = 10		# >=
