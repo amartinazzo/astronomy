@@ -7,7 +7,7 @@ import os
 
 # train or test
 mode = 't'
-generate_patches = False
+generate_patches = True
 
 cat_file = 'catalog_{}.csv'.format(mode)
 in_path = 'raw_data/'
@@ -41,10 +41,10 @@ def gen_data(input_folder, output_folder, csv_file):
 
         if generate_patches:
             im = cv2.imread(filename)
-            # im = im[y_pad0:y_pad1, x_pad0:x_pad1] # coordinates are im[y, x]
-            for y in range(0, y_size-patch_overlap, d):
+            im = im[pad_y0:pad_y1, pad_x0:pad_x1] # coordinates are im[y, x]
+            for y in range(0, pad_y1-pad_y0-patch_overlap, d):
                 y_int = y//d
-                for x in range(0, x_size-patch_overlap, d):
+                for x in range(0, pad_x1-pad_x0-patch_overlap, d):
                     cropped_img = im[y:y+patch_size, x:x+patch_size]
                     cv2.imwrite('{}{}.{}.{}.png'.format(
                         output_folder, stripe, y_int, x//d), cropped_img)
@@ -61,15 +61,15 @@ def gen_data(input_folder, output_folder, csv_file):
         cat['class'] = 'galaxy'
         cat.loc[cat.CLASS == star_int_class, 'class'] = 'star'
 
-        cat['x0'] = cat.X - m*cat.FWHM
-        cat['x1'] = cat.X + m*cat.FWHM
-        cat['y0'] = y_size - cat.Y - m*cat.FWHM
-        cat['y1'] = y_size - cat.Y + m*cat.FWHM
+        cat['x0'] = cat.X - pad_x0 - m*cat.FWHM
+        cat['x1'] = cat.X - pad_x0 + m*cat.FWHM
+        cat['y0'] = img_size-pad_y0 - cat.Y - m*cat.FWHM
+        cat['y1'] = img_size-pad_y0 - cat.Y + m*cat.FWHM
 
         cat.loc[cat.x0<0, 'x0'] = 0
-        cat.loc[cat.x1>x_size, 'x1'] = x_size
+        cat.loc[cat.x1>img_size, 'x1'] = img_size
         cat.loc[cat.y0<0, 'y0'] = 0
-        cat.loc[cat.y1>y_size, 'y1'] = y_size
+        cat.loc[cat.y1>img_size, 'y1'] = img_size
 
         cat['patch_x'] = cat.x1.apply(patch_coord)
         cat['patch_y'] = cat.y1.apply(patch_coord)

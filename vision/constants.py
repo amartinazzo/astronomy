@@ -1,25 +1,27 @@
+from keras.backend import floatx
+from keras_retinanet.models.retinanet import AnchorParameters
+import numpy as np
+
 # input image		11000 x 11000
 # original padding	im[1410:10560, 590:9980]
 # squared padding	im[1100:10600, 480:9980]
 # size with padding	9200 x 9500
 
-img_size = 11000
-patch_overlap = 200	# 150
-patch_size = 1100	# 1000
-x_size = img_size
-y_size = img_size
+pad_x0 = 1410
+pad_x1 = 10560
+pad_y0 = 590
+pad_y1 = 9980
 
-# padding
-# x_pad0 = 1360
-# x_pad1 = 10560
-# y_pad0 = 480
-# y_pad1 = 9980
+
+img_size = 11000
+patch_overlap = 100
+patch_size = 800		# retinanet will resize img if > 800
 
 m = 2				# multiply by FWHM to generate bounding boxes
 
 # thresholds for filtering training objects
 fwhm_min = 2		# >=
-fwhm_max = 10		# <=
+fwhm_max = 20		# <=
 mumax_thres = 17	# <=
 prob_thres = .9		# >=
 s2n_thres = 10		# >=
@@ -42,3 +44,10 @@ cols = [
 
 df_cols = ['file', 'x0', 'y0', 'x1', 'y1', 'class']
 usecols = ['ID', 'X', 'Y', 'MUMAX', 's2nDet', 'FWHM', 'CLASS', 'PROB_GAL', 'PROB_STAR']
+
+anchor_params = AnchorParameters(
+    sizes   = [8, 16, 32, 64, 128],
+    strides = [8, 16, 32],
+    ratios  = np.array([1], floatx()),
+    scales  = np.array([1, 1.2, 1.6], floatx()),
+)

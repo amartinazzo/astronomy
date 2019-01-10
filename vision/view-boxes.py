@@ -9,16 +9,16 @@ import pandas as pd
 import time
 
 raw = False
-predict = True
+predict = False
 
-image_file = 'patches_t/STRIPE82-0013.1.8.png'
+image_file = 'patches_t/STRIPE82-0013.0.12.png'
 catalog = 'catalog_t.csv'
 model_weights = 'models/model-190109-1157.h5'
 
 # stars = red
 # galaxies = blue
-colors = {'star': [150,0,0], 'galaxy': [0,0,150]}
-colors_pred = {'star': [255, 150, 150], 'galaxy': [150,150,255]}
+colors = {'star': [200,0,0], 'galaxy': [0,200,0]}
+colors_pred = {'star': [255, 150, 150], 'galaxy': [150,255,150]}
 
 if raw:
     cat = pd.read_csv(catalog,
@@ -31,8 +31,8 @@ if raw:
     cat.loc[cat.FWHM < f, 'FWHM'] = f
     cat['x0'] = cat.X - m*cat.FWHM
     cat['x1'] = cat.X + m*cat.FWHM
-    cat['y0'] = y_size - cat.Y - m*cat.FWHM
-    cat['y1'] = y_size - cat.Y + m*cat.FWHM
+    cat['y0'] = img_size - cat.Y - m*cat.FWHM
+    cat['y1'] = img_size - cat.Y + m*cat.FWHM
 
     cat = cat.sort_values(by='FWHM', ascending=False).head(100)
     #print(cat)
@@ -54,7 +54,7 @@ for box, label in zip(boxes, labels):
     #draw_caption(image, box, label)
 
 if predict:
-    model = load_model(model_weights, n_classes=2)
+    model = load_model(model_weights, n_classes=2, anchor_params=anchor_params)
     model = convert_model(model)
     image_input = preprocess_image(image)
     image_input, scale = resize_image(image_input)

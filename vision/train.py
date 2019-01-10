@@ -18,7 +18,7 @@ import tensorflow as tf
 # nohup python3 train.py &
 
 
-do_train_val_split = True
+do_train_val_split = False
 
 cat_file = 'catalog_train.csv'
 classes_file = 'class_mapping.csv'
@@ -53,10 +53,14 @@ def frozen_model(model):
     return model
 
 
-def load_model(weights, n_classes, freeze=True):
+def load_model(weights, n_classes, freeze=True, anchor_params=None):
     modifier = frozen_model if freeze else None
 
-    model = resnet50_retinanet(num_classes=n_classes, modifier=modifier)
+    model = resnet50_retinanet(
+        num_classes=n_classes,
+        modifier=modifier,
+        anchor_params=anchor_params
+        )
     model.load_weights(weights, by_name=True, skip_mismatch=True)
 
     return model
@@ -84,7 +88,12 @@ if __name__=='__main__':
 
     # load model
 
-    model = load_model(pretrained_model, n_classes=2, freeze=freeze_weights)
+    model = load_model(
+        pretrained_model,
+        n_classes=2,
+        freeze=freeze_weights,
+        anchor_params=anchor_params
+        )
 
     # train model
 
