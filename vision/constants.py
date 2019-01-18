@@ -6,13 +6,6 @@
 # anchor params must be modified inside retinanet src code
 # in ~/keras-retinanet/keras_retinanet/utils/anchors.py
 
-# AnchorParameters.default = AnchorParameters(
-#     sizes   = [8, 16, 32, 64, 128],
-#     strides = [8, 16, 32],
-#     ratios  = np.array([1], keras.backend.floatx()),
-#     scales  = np.array([1, 1.2], keras.backend.floatx()),
-# )
-
 
 pad_x0 = 1410
 pad_x1 = 10560
@@ -25,6 +18,7 @@ patch_overlap = 100
 patch_size = 800		# retinanet will resize img if > 800
 
 m = 2				# multiply by FWHM to generate bounding boxes
+f = 7				# min FWHM value
 
 # thresholds for filtering training objects
 fwhm_min = 2		# >=

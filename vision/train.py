@@ -12,28 +12,28 @@ from keras_retinanet.preprocessing.csv_generator import CSVGenerator
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import time
 
 
 # to keep training after logging out of server
 # nohup python3 train.py &
 
 
-do_train_val_split = False
+do_train_val_split = True
 
 cat_file = 'catalog_train.csv'
 classes_file = 'class_mapping.csv'
-pretrained_model = 'resnet50_coco_best_v2.1.0.h5'
+pretrained_model = 'models/resnet50_coco_best_v2.1.0.h5'
 
 train_file = 'catalog_train_train.csv'
 val_file = 'catalog_train_val.csv'
 
 clipnorm = 1e-3
-freeze_weights = False
 lr = 1e-4
 n_epochs = 5
 val_split = 0.3
 
-model_name = 'model-' + datetime.now().strftime("%y%m%d-%H%M")
+model_name = 'model-' + datetime.now().strftime("%y%m%d")
 checkpoint_file = 'models/{}.h5'.format(model_name)
 
 
@@ -47,21 +47,19 @@ class JsonHistory(History):
             json.dump(self.history, file)
 
 
-def frozen_model(model):
-    for layer in model.layers:
-        layer.trainable = False
-    return model
+def load_model(weights, n_classes):
+    model = resnet50_retinanet(n_classes)
 
+    model.load_weights(weights, by_name=True, skip_mismatch=True)
 
-def load_model(weights, n_classes, freeze=True, anchor_params=None):
-    modifier = frozen_model if freeze else None
-
-    model = resnet50_retinanet(
-        n_classes,
-        modifier=modifier,
-        anchor_parameters=anchor_params
-        )
-    model = model.load_weights(weights, by_name=True, skip_mismatch=True)
+    model.compile(
+        loss={
+            'regression'    : losses.smooth_l1(),
+            'classification': losses.focal()
+        },
+        metrics=['accuracy'],
+        optimizer=optimizers.adam(lr=lr, clipnorm=clipnorm)
+    )
 
     return model
 
@@ -71,7 +69,7 @@ def load_model(weights, n_classes, freeze=True, anchor_params=None):
 
 if __name__=='__main__':
 
-    # train val split
+    # split train-val sets
 
     if do_train_val_split:
         df = pd.read_csv(
@@ -88,26 +86,12 @@ if __name__=='__main__':
 
     # load model
 
-    model = load_model(
-        pretrained_model,
-        n_classes=2,
-        freeze=freeze_weights,
-        anchor_params=anchor_params
-        )
+    model = load_model(pretrained_model, n_classes=2)
 
     # train model
 
     train_gen = CSVGenerator(train_file, classes_file)
     val_gen = CSVGenerator(val_file, classes_file)
-
-    model.compile(
-        loss={
-            'regression'    : losses.smooth_l1(),
-            'classification': losses.focal()
-        },
-        metrics=['accuracy'],
-        optimizer=optimizers.adam(lr=lr, clipnorm=clipnorm)
-    )
 
     checkpoint = ModelCheckpoint(
         checkpoint_file,
@@ -118,6 +102,7 @@ if __name__=='__main__':
     )
     history_callback = JsonHistory()
 
+    start = time.perf_counter()
     history = model.fit_generator(
         train_gen,
         steps_per_epoch=train_gen.size(),
@@ -127,3 +112,5 @@ if __name__=='__main__':
         epochs=n_epochs,
         verbose=1,
     )
+
+    print("total time elapsed: {} hours".format((time.perf_counter()-start)/3600))

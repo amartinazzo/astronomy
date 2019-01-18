@@ -7,7 +7,7 @@ import os
 
 # train or test
 mode = 'train'
-generate_patches = True
+generate_patches = False
 
 cat_file = 'catalog_{}.csv'.format(mode)
 in_path = 'raw_data/'
@@ -55,41 +55,46 @@ def gen_data(input_folder, output_folder, csv_file):
             header=None, names=cols, usecols=usecols)
 
         cat = cat[(cat.PROB_STAR>=prob_thres)|(cat.PROB_GAL>=prob_thres)]
-        and_filters = (cat.FWHM>=fwhm_min) & (cat.FWHM<=fwhm_max) & (cat.MUMAX<=mumax_thres) & (cat.s2nDet>=s2n_thres)
+        and_filters = (cat.FWHM>=fwhm_min) & (cat.MUMAX<=mumax_thres) & (cat.s2nDet>=s2n_thres)
         cat = cat[and_filters]
         
         cat['class'] = 'galaxy'
         cat.loc[cat.CLASS == star_int_class, 'class'] = 'star'
 
-        cat['x0'] = cat.X - pad_x0 - m*cat.FWHM
-        cat['x1'] = cat.X - pad_x0 + m*cat.FWHM
-        cat['y0'] = img_size-pad_y0 - cat.Y - m*cat.FWHM
-        cat['y1'] = img_size-pad_y0 - cat.Y + m*cat.FWHM
+        cat['X'] = cat.X - pad_x0
+        cat['Y'] = img_size-pad_y0 - cat.Y
 
-        cat.loc[cat.x0<0, 'x0'] = 0
-        cat.loc[cat.x1>img_size, 'x1'] = img_size
-        cat.loc[cat.y0<0, 'y0'] = 0
-        cat.loc[cat.y1>img_size, 'y1'] = img_size
+        cat['patch_x'] = cat.X.apply(patch_coord)
+        cat['patch_y'] = cat.Y.apply(patch_coord)
 
-        cat['patch_x'] = cat.x1.apply(patch_coord)
-        cat['patch_y'] = cat.y1.apply(patch_coord)
+        cat.loc[cat.FWHM < f, 'FWHM'] = f
+        cat['x0'] = cat.X - m*cat.FWHM - cat.patch_x*d
+        cat['x1'] = cat.X + m*cat.FWHM - cat.patch_x*d
+        cat['y0'] = cat.Y - m*cat.FWHM - cat.patch_y*d
+        cat['y1'] = cat.Y + m*cat.FWHM - cat.patch_y*d
+
+        # cat.loc[cat.x0<0, 'x0'] = 0
+        # cat.loc[cat.x1>img_size, 'x1'] = img_size
+        # cat.loc[cat.y0<0, 'y0'] = 0
+        # cat.loc[cat.y1>img_size, 'y1'] = img_size
 
         cat['image'] = cat[['patch_y', 'patch_x']].apply(
             lambda s: '{}{}.{}.{}.png'.format(output_folder, stripe, s[0], s[1]), axis=1)
 
-        cat['x0'] = np.floor(cat.x0 - cat.patch_x*d)
-        cat['x1'] = np.ceil(cat.x1 - cat.patch_x*d)
-        cat['y0'] = np.floor(cat.y0 - cat.patch_y*d)
-        cat['y1'] = np.ceil(cat.y1 - cat.patch_y*d)
-
         int_cols = ['x0', 'x1', 'y0', 'y1']
         cat[int_cols] = cat[int_cols].astype(int)
 
-        bounds = (cat.x0>=0) & (cat.x1<=patch_size) & (cat.y0>=0) & (cat.y1<=patch_size)
+        bounds = (cat.x0>=0) & (cat.x1.between(cat.x0+1, patch_size)) & (cat.y0>=0) & (cat.y1.between(cat.y0+1,patch_size))
         cat = cat[bounds]
+        cat = cat[['image', 'x0', 'y0', 'x1', 'y1', 'class']]
 
-        cat_final = cat[['image', 'x0', 'y0', 'x1', 'y1', 'class']]
-        cat_final.to_csv(cat_file, index=False, header=False, mode='a')
+        cat.to_csv(cat_file, index=False, header=False, mode='a')
+
+    d = pd.read_csv(cat_file, header=None)
+    msk = d[0].str.contains(".13.png")
+    d = d[~msk]
+    d.to_csv(cat_file, header=None, index=False)
+
 
 
 if __name__=='__main__':

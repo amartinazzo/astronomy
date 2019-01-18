@@ -3,6 +3,7 @@ from train import load_model
 from keras_retinanet.utils.image import read_image_bgr, preprocess_image, resize_image
 from keras_retinanet.models import convert_model
 from keras_retinanet.utils.visualization import draw_box, draw_caption
+import matplotlib.image as matplotim
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -11,14 +12,15 @@ import time
 raw = False
 predict = False
 
-image_file = 'patches_t/STRIPE82-0013.0.12.png'
+image_file = 'patches_t/STRIPE82-0013.1.9.png'
 catalog = 'catalog_t.csv'
-model_weights = 'models/model-190109-1157.h5'
+model_weights = 'models/model-190115-1357.h5'
+# model_weights = 'models/model-190114-1104.h5'
 
 # stars = red
-# galaxies = blue
+# galaxies = green
 colors = {'star': [200,0,0], 'galaxy': [0,200,0]}
-colors_pred = {'star': [255, 150, 150], 'galaxy': [150,255,150]}
+colors_pred = {0: [255, 150, 150], 1: [150,255,150]}
 
 if raw:
     cat = pd.read_csv(catalog,
@@ -54,7 +56,7 @@ for box, label in zip(boxes, labels):
     #draw_caption(image, box, label)
 
 if predict:
-    model = load_model(model_weights, n_classes=2, anchor_params=anchor_params)
+    model = load_model(model_weights, n_classes=2)
     model = convert_model(model)
     image_input = preprocess_image(image)
     image_input, scale = resize_image(image_input)
@@ -75,4 +77,5 @@ if predict:
 plt.figure()
 plt.axis('off')
 plt.imshow(image)
+matplotim.imsave(image_file.split('/')[1][:-4]+'-annotations.png', image)
 plt.show()
