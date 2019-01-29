@@ -1,6 +1,6 @@
 import os
 os.environ['CUDA_DEVICE_ORDER']='PCI_BUS_ID'
-os.environ['CUDA_VISIBLE_DEVICES']='1' # use only gpu id=1
+os.environ['CUDA_VISIBLE_DEVICES']='0' # use only gpu with given id
 
 from datetime import datetime
 import json
@@ -19,11 +19,11 @@ import time
 # nohup python3 train.py &
 
 
-do_train_val_split = True
+do_train_val_split = False
 
 cat_file = 'catalog_train.csv'
 classes_file = 'class_mapping.csv'
-pretrained_model = 'models/resnet50_coco_best_v2.1.0.h5'
+pretrained_model = 'models/model-190124.h5'
 
 train_file = 'catalog_train_train.csv'
 val_file = 'catalog_train_val.csv'

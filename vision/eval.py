@@ -3,7 +3,7 @@ from keras_retinanet.models import convert_model
 from keras_retinanet.utils.eval import evaluate
 
 
-model_weights = 'models/model-190114-1104.h5'
+model_weights = 'models/model-190124.h5'
 # model_weights = 'models/resnet50_coco_best_v2.1.0.h5'
 val_file = 'catalog_val_small.csv'
 
@@ -25,7 +25,7 @@ ap = evaluate(
 	model,
 	iou_threshold=0.3,
 	score_threshold=0.3,
-	max_detections=100,
+	max_detections=300,
 	save_path=model_weights.split('.')[0]+'eval'
 	)
 

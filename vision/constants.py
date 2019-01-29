@@ -17,17 +17,18 @@ img_size = 11000
 patch_overlap = 100
 patch_size = 800		# retinanet will resize img if > 800
 
+d = patch_size - patch_overlap
+
 m = 2				# multiply by FWHM to generate bounding boxes
-f = 7				# min FWHM value
+f = 6				# min FWHM value
 
 # thresholds for filtering training objects
-fwhm_min = 2		# >=
+fwhm_min = 1		# >=
 fwhm_max = 20		# <=
-mumax_thres = 17	# <=
+mumax_thres = 20	# <=
 prob_thres = .9		# >=
 s2n_thres = 10		# >=
 
-d = patch_size - patch_overlap
 # patch_size + n*d = img_size
 # n+1 is the number of patches along each axis
 

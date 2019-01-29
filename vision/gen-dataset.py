@@ -6,13 +6,12 @@ import numpy as np
 import os
 
 # train or test
-mode = 'train'
+mode = 't'
 generate_patches = False
 
 cat_file = 'catalog_{}.csv'.format(mode)
 in_path = 'raw_data/'
 out_path = 'patches_{}/'.format(mode)
-
 
 def patch_coord(x):
     if x<= patch_size:
@@ -68,10 +67,11 @@ def gen_data(input_folder, output_folder, csv_file):
         cat['patch_y'] = cat.Y.apply(patch_coord)
 
         cat.loc[cat.FWHM < f, 'FWHM'] = f
-        cat['x0'] = cat.X - m*cat.FWHM - cat.patch_x*d
-        cat['x1'] = cat.X + m*cat.FWHM - cat.patch_x*d
-        cat['y0'] = cat.Y - m*cat.FWHM - cat.patch_y*d
-        cat['y1'] = cat.Y + m*cat.FWHM - cat.patch_y*d
+        delta = patch_size - patch_overlap
+        cat['x0'] = cat.X - m*cat.FWHM - cat.patch_x*delta
+        cat['x1'] = cat.X + m*cat.FWHM - cat.patch_x*delta
+        cat['y0'] = cat.Y - m*cat.FWHM - cat.patch_y*delta
+        cat['y1'] = cat.Y + m*cat.FWHM - cat.patch_y*delta
 
         # cat.loc[cat.x0<0, 'x0'] = 0
         # cat.loc[cat.x1>img_size, 'x1'] = img_size
