@@ -11,11 +11,11 @@ import pandas as pd
 import time
 
 raw = False
-predict = True
+predict = False
 ground_truth = True
 
-image_file = 'patches_t/STRIPE82-0013.1.9.png'
-catalog = 'catalog_t.csv'
+image_file = 'patches_train/STRIPE82-0003.5.3.png'
+catalog = 'catalog_train.csv'
 model_weights = 'models/model-190129.h5'
 
 nms_thres = 0.9
@@ -39,7 +39,7 @@ if ground_truth:
     labels = cat['class'].values
 
     for box, label in zip(boxes, labels):
-        draw_box(image, box, color=colors[label], style='dotted')
+        draw_box(image, box, color=colors[label])
 
 if predict:
     model = load_model(model_weights, n_classes=2)

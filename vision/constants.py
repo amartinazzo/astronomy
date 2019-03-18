@@ -14,20 +14,22 @@ pad_y1 = 9980
 
 
 img_size = 11000
-patch_overlap = 100
+patch_overlap = 0
 patch_size = 800		# retinanet will resize img if > 800
 
-d = patch_size - patch_overlap
+patch_step = patch_size - patch_overlap
 
 m = 2				# multiply by FWHM to generate bounding boxes
 f = 6				# min FWHM value
 
 # thresholds for filtering training objects
-fwhm_min = 1		# >=
-fwhm_max = 20		# <=
-mumax_thres = 20	# <=
-prob_thres = .9		# >=
-s2n_thres = 10		# >=
+fwhm_min = 1
+fwhm_max = 20
+mumax_min = 14
+mumax_max = 17
+prob_min = .9
+s2n_min = 10
+photoflag = 0
 
 # patch_size + n*d = img_size
 # n+1 is the number of patches along each axis
@@ -44,4 +46,4 @@ cols = [
 ]
 
 df_cols = ['file', 'x0', 'y0', 'x1', 'y1', 'class']
-usecols = ['ID', 'X', 'Y', 'MUMAX', 's2nDet', 'FWHM', 'CLASS', 'PROB_GAL', 'PROB_STAR']
+usecols = ['ID', 'X', 'Y', 'MUMAX', 'PhotoFlag', 's2nDet', 'FWHM', 'CLASS', 'PROB_GAL', 'PROB_STAR']
